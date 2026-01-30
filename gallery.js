@@ -79,6 +79,36 @@ async function loadPage() {
     }
 }
 
+/* ===== SELECTION LOGIC ===== */
+const selectedIds = new Set();
+const selectionBar = document.getElementById('selectionBar');
+const selectionCount = document.getElementById('selectionCount');
+const copyBtn = document.getElementById('copyIds');
+const clearBtn = document.getElementById('clearSelection');
+
+function updateSelectionUI() {
+    selectionCount.innerText = `Selected: ${selectedIds.size}`;
+    if (selectedIds.size > 0) {
+        selectionBar.classList.add('visible');
+    } else {
+        selectionBar.classList.remove('visible');
+    }
+}
+
+copyBtn.onclick = () => {
+    const idsStr = Array.from(selectedIds).join(',');
+    navigator.clipboard.writeText(idsStr).then(() => {
+        alert('Copied ' + selectedIds.size + ' IDs to clipboard!');
+    });
+};
+
+clearBtn.onclick = () => {
+    selectedIds.clear();
+    updateSelectionUI();
+    // Re-render current page to uncheck boxes
+    loadPage();
+};
+
 /* ===== RENDER ===== */
 function render(items) {
     gallery.innerHTML = '';
@@ -87,11 +117,37 @@ function render(items) {
         const div = document.createElement('div');
         div.className = 'item';
 
-        div.innerHTML = `
-      <img src="${item.thumb_huge || item.thumbnail}" loading="lazy">
-      <div><b>ID:</b> ${item.id}</div>
-      <div><b>Status:</b> ${item.status}</div>
-    `;
+        // Check selection state
+        const isSelected = selectedIds.has(item.id);
+        if (isSelected) div.classList.add('selected');
+
+        // Checkbox
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'item-select';
+        checkbox.checked = isSelected;
+
+        checkbox.onchange = (e) => {
+            if (e.target.checked) {
+                selectedIds.add(item.id);
+                div.classList.add('selected');
+            } else {
+                selectedIds.delete(item.id);
+                div.classList.remove('selected');
+            }
+            updateSelectionUI();
+        };
+
+        div.appendChild(checkbox);
+
+        // Content
+        const content = document.createElement('div');
+        content.innerHTML = `
+          <img src="${item.thumb_huge || item.thumbnail}" loading="lazy">
+          <div><b>ID:</b> ${item.id}</div>
+          <div><b>Status:</b> ${item.status}</div>
+        `;
+        div.appendChild(content);
 
         gallery.appendChild(div);
     });
