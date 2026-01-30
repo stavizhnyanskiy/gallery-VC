@@ -7,6 +7,9 @@
     <style>
         body {
             font-family: Arial, sans-serif;
+            text-align: center;
+            padding-bottom: 120px;
+            /* Space for the bottom selection bar */
         }
 
         .gallery {
@@ -55,16 +58,80 @@
             text-align: center;
             margin-left: 10px;
         }
+
+        /* Selection Bar */
+        .selection-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #222;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transform: translateY(100%);
+            transition: transform 0.3s;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+
+        .selection-bar.visible {
+            transform: translateY(0);
+        }
+
+        .selection-bar button {
+            background: #0078d4;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .selection-bar button.clear {
+            background: #d40000;
+            margin-left: 10px;
+        }
+
+        /* Checkbox styling */
+        .item {
+            position: relative;
+        }
+
+        .item.selected {
+            outline: 2px solid #0078d4;
+            background: #f0f8ff;
+        }
+
+        .item-select {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            transform: scale(1.5);
+            cursor: pointer;
+            z-index: 10;
+        }
     </style>
 </head>
 
 <body>
 
-    <h2>Media gallery (CSV IDs)</h2>
+    <h2>Rejects from VC</h2>
 
     <div class="gallery" id="gallery"></div>
 
     <div class="pagination" id="pagination"></div>
+
+    <div class="selection-bar" id="selectionBar">
+        <div id="selectionCount">Selected: 0</div>
+        <div>
+            <button id="copyIds">Copy IDs</button>
+            <button class="clear" id="clearSelection">Clear</button>
+        </div>
+    </div>
 
     <script src="config.js"></script>
     <script src="gallery.js"></script>
