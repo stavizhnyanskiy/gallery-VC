@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Gallery from CSV</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+        }
+
+        .item {
+            text-align: center;
+            font-size: 12px;
+        }
+
+        img {
+            width: 100%;
+            border-radius: 4px;
+        }
+
+        .pagination {
+            margin: 20px 0;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .pagination button {
+            padding: 5px 10px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .pagination button.active {
+            background: #0078d4;
+            color: white;
+            border-color: #0078d4;
+        }
+
+        .pagination input {
+            width: 50px;
+            padding: 5px;
+            text-align: center;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Media gallery (CSV IDs)</h2>
+
+    <div class="gallery" id="gallery"></div>
+
+    <div class="pagination" id="pagination"></div>
+
+    <script src="config.js"></script>
+    <script src="gallery.js"></script>
+</body>
+
+</html>

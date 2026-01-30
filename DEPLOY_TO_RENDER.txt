@@ -1,0 +1,36 @@
+DEPLOYMENT TO RENDER (INSTRUCTIONS)
+=====================================
+
+1. Push to GitHub
+-----------------
+Make sure you have committed and pushed all new files to your GitHub repository:
+- server.py (updated)
+- render.yaml
+- requirements.txt
+
+2. Create Account on Render
+---------------------------
+Go to https://render.com and sign up (you can use your GitHub account).
+
+3. Create New Web Service
+-------------------------
+1. On the Render Dashboard, click "New +" -> "Web Service".
+2. Select "Build and deploy from a Git repository".
+3. Connect your GitHub account and select your repository "Microsoft" (or whatever you named the repo).
+4. On the configuration screen:
+   - Name: `depositphotos-gallery` (or any name you like).
+   - Region: Any (e.g., Frankfurt).
+   - Branch: `main` (or `master`).
+   - Root Directory: Leave empty (or `.` ).
+   - Runtime: `Python 3`.
+   - Build Command: (Leave empty).
+   - Start Command: `python3 server.py`.
+   - Instance Type: Free.
+
+5. Click "Create Web Service".
+
+4. Done!
+--------
+Render will verify the code and start the server.
+It will give you a URL like `https://depositphotos-gallery.onrender.com`.
+Open that URL, and your gallery should work!
