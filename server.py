@@ -31,6 +31,43 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(e.read())
             except Exception as e:
                 self.send_error(500, str(e))
+
+        elif self.path == '/api_update_selection':
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                import json
+                data = json.loads(post_data)
+                
+                target_id = str(data.get('id'))
+                is_selected = data.get('selected')
+                
+                filename = 'checked_ids.txt'
+                
+                # Read existing
+                existing = set()
+                if os.path.exists(filename):
+                    with open(filename, 'r') as f:
+                        for line in f:
+                            existing.add(line.strip())
+                
+                # Update
+                if is_selected:
+                    existing.add(target_id)
+                else:
+                    existing.discard(target_id)
+                
+                # Write back
+                with open(filename, 'w') as f:
+                    for uid in sorted(existing):
+                        f.write(f"{uid}\n")
+                        
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"status": "ok"}')
+
+            except Exception as e:
+                self.send_error(500, str(e))
         else:
             # Default behavior for other POST requests (though we don't expect any)
             super().do_POST()

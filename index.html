@@ -13,19 +13,65 @@
         }
 
         .gallery {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px;
         }
 
         .item {
-            text-align: center;
-            font-size: 12px;
+            height: 250px;
+            flex-grow: 1;
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s;
         }
 
-        img {
-            width: 100%;
-            border-radius: 4px;
+        .item:hover {
+            z-index: 5;
+            transform: scale(1.02);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .item>div {
+            height: 100%;
+            display: flex;
+        }
+
+        .item img {
+            height: 100%;
+            width: auto;
+            min-width: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .meta {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+            color: white;
+            padding: 10px 5px 5px;
+            font-size: 11px;
+            text-align: left;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: auto;
+        }
+
+        .item:hover .meta {
+            opacity: 1;
+        }
+
+        /* Ensure last row items don't stretch too much */
+        .gallery::after {
+            content: '';
+            flex-grow: 999999999;
         }
 
         .pagination {
@@ -119,7 +165,7 @@
 
 <body>
 
-    <h2>Rejects from VC</h2>
+    <h2>Nudity from VC</h2>
 
     <div class="gallery" id="gallery"></div>
 

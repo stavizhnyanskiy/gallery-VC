@@ -2,7 +2,7 @@ services:
   - type: web
     name: depositphotos-gallery
     env: python
-    buildCommand: ""
+    buildCommand: "echo 'Build skipped'"
     startCommand: python3 server.py
     plan: free
     autoDeploy: true

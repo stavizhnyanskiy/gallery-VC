@@ -1,0 +1,24 @@
+How to Run the App (with Proxy)
+To fix the "Failed to fetch" (CORS) error, I created a custom server script 
+server.py
+ that handles the API connection for you.
+
+Step 1: Open Terminal
+Open the Terminal app.
+
+Step 2: Navigate to your folder
+Copy and paste this command into the terminal and press Enter:
+
+cd "/Users/sergeytavizhnyanskiy/Документи/Depositphotos/App/Microsoft"
+Step 3: Run the Proxy Server
+Run this command:
+
+python3 server.py
+You should see a message saying "Starting server at http://localhost:8000"
+
+Step 4: Open in Browser
+Open your web browser and go to:
+
+http://localhost:8000
+
+The gallery should now load correctly without errors!

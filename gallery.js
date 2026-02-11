@@ -9,18 +9,54 @@ const gallery = document.getElementById('gallery');
 const pageLabel = document.getElementById('page');
 
 /* ===== CSV LOADER ===== */
+const BATCH_SIZE = 1000;
+let currentBatch = 0;
+
 async function loadCSV() {
     try {
-        const res = await fetch('ids.csv');
+        const res = await fetch(`ids.csv?t=${Date.now()}`);
         if (!res.ok) throw new Error(`Failed to load CSV: ${res.status} ${res.statusText}`);
         const text = await res.text();
 
-        ids = text
+        const allIds = text
             .split('\n')
             .slice(1) // skip header
             .map(row => row.split(';')[0].trim())
             .filter(Boolean)
             .map(Number);
+
+        // Load persistend selections
+        try {
+            const checkedRes = await fetch('checked_ids.txt');
+            if (checkedRes.ok) {
+                const checkedText = await checkedRes.text();
+                const checkedList = checkedText.split('\n').map(s => s.trim()).filter(Boolean).map(Number);
+                checkedList.forEach(id => selectedIds.add(id));
+                updateSelectionUI();
+            }
+        } catch (e) {
+            console.warn('Could not load checked_ids.txt', e);
+        }
+
+        // Parse batch from URL
+        const params = new URLSearchParams(window.location.search);
+        currentBatch = parseInt(params.get('batch')) || 0;
+
+        const start = currentBatch * BATCH_SIZE;
+        const end = start + BATCH_SIZE;
+
+        // Slice only the current batch
+        ids = allIds.slice(start, end);
+
+        // Update UI to show current batch info
+        const batchInfo = document.createElement('div');
+        batchInfo.style.textAlign = 'center';
+        batchInfo.style.marginBottom = '10px';
+        batchInfo.innerHTML = `
+            <strong>Batch: ${currentBatch}</strong> 
+            (Items ${start} - ${Math.min(end, allIds.length)} of ${allIds.length})
+        `;
+        gallery.parentElement.insertBefore(batchInfo, gallery);
 
         loadPage();
     } catch (err) {
@@ -136,6 +172,12 @@ function render(items) {
                 div.classList.remove('selected');
             }
             updateSelectionUI();
+
+            // Auto-save
+            fetch('/api_update_selection', {
+                method: 'POST',
+                body: JSON.stringify({ id: item.id, selected: e.target.checked })
+            }).catch(err => console.error('Save failed', err));
         };
 
         div.appendChild(checkbox);
@@ -144,8 +186,10 @@ function render(items) {
         const content = document.createElement('div');
         content.innerHTML = `
           <img src="${item.thumb_huge || item.thumbnail}" loading="lazy">
-          <div><b>ID:</b> ${item.id}</div>
-          <div><b>Status:</b> ${item.status}</div>
+          <div class="meta">
+              <div><b>ID:</b> <a href="https://admin.depositphotos.com/files/view/${item.id}" target="_blank" style="color:#fff;text-decoration:underline;">${item.id}</a></div>
+              <div><b>Status:</b> ${item.status}</div>
+          </div>
         `;
         div.appendChild(content);
 
