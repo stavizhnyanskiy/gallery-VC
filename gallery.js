@@ -12,34 +12,56 @@ const pageLabel = document.getElementById('page');
 const BATCH_SIZE = 1000;
 let currentBatch = 0;
 
+/* ===== LOCALSTORAGE SYNC ===== */
+const STORAGE_KEY = 'gallery_selected_ids';
+
+function saveToLocalStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(selectedIds)));
+    } catch (e) { }
+}
+
+function loadFromLocalStorage() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            JSON.parse(saved).forEach(id => selectedIds.add(String(id)));
+            updateSelectionUI();
+        }
+    } catch (e) { }
+}
+
 async function loadCSV() {
     try {
         const res = await fetch(`ids.csv?t=${Date.now()}`);
         if (!res.ok) throw new Error(`Failed to load CSV: ${res.status} ${res.statusText}`);
         const text = await res.text();
 
+        // Parse IDs — CSV has NO header, filter only numeric lines
         const allIds = text
             .split('\n')
-            .slice(1) // skip header
             .map(row => row.split(';')[0].trim())
-            .filter(Boolean)
-            .map(Number);
+            .filter(s => /^\d+$/.test(s)); // only valid numeric IDs
 
-        // Load persistent selections
+        // Step 1: Restore from localStorage immediately (fast, no network)
+        loadFromLocalStorage();
+
+        // Step 2: Sync with Google Sheets (authoritative source, may be slow)
         try {
             const checkedRes = await fetch('/api_get_checked_ids?t=' + Date.now());
-            console.log('[DEBUG] /api_get_checked_ids status:', checkedRes.status, checkedRes.ok);
             if (checkedRes.ok) {
                 const checkedText = await checkedRes.text();
-                console.log('[DEBUG] Raw checked IDs response:', JSON.stringify(checkedText));
-                const checkedList = checkedText.split('\n').map(s => s.trim()).filter(Boolean);
-                console.log('[DEBUG] Parsed ID strings:', checkedList);
-                checkedList.forEach(id => selectedIds.add(id));
-                console.log('[DEBUG] selectedIds after load:', Array.from(selectedIds));
+                const serverIds = checkedText.split('\n').map(s => s.trim()).filter(Boolean);
+                if (serverIds.length > 0 || selectedIds.size === 0) {
+                    // Server returned data: use server as truth
+                    selectedIds.clear();
+                    serverIds.forEach(id => selectedIds.add(id));
+                }
+                saveToLocalStorage();
                 updateSelectionUI();
             }
         } catch (e) {
-            console.warn('[DEBUG] Could not load checked IDs:', e);
+            console.warn('Could not sync with Google Sheets, using localStorage backup:', e);
         }
 
         // Parse batch from URL
@@ -49,7 +71,7 @@ async function loadCSV() {
         const start = currentBatch * BATCH_SIZE;
         const end = start + BATCH_SIZE;
 
-        // Slice only the current batch
+        // Slice only the current batch (exactly BATCH_SIZE items, or fewer for the last batch)
         ids = allIds.slice(start, end);
 
         // Update UI to show current batch info
@@ -58,7 +80,7 @@ async function loadCSV() {
         batchInfo.style.marginBottom = '10px';
         batchInfo.innerHTML = `
             <strong>Batch: ${currentBatch}</strong> 
-            (Items ${start} - ${Math.min(end, allIds.length)} of ${allIds.length})
+            (Items ${start + 1} - ${Math.min(end, allIds.length)} of ${allIds.length})
         `;
         gallery.parentElement.insertBefore(batchInfo, gallery);
 
@@ -82,7 +104,7 @@ async function loadPage() {
             return;
         }
 
-        // Create an array of promises, one for each ID
+        // Create an array of promises, one for each ID — order is preserved by Promise.all
         const promises = slice.map(async (id) => {
             try {
                 const body = new URLSearchParams({
@@ -96,22 +118,19 @@ async function loadPage() {
                     body
                 });
 
-                if (!response.ok) return null; // Ignore errors for individual items
+                if (!response.ok) return { id, _failed: true };
                 const data = await response.json();
-                return data && !data.error ? data : null;
+                return data && !data.error ? data : { id, _failed: true };
             } catch (e) {
                 console.error(`Error loading ID ${id}:`, e);
-                return null;
+                return { id, _failed: true };
             }
         });
 
-        // Wait for all requests to finish
+        // Wait for all requests to finish — Promise.all preserves order
         const results = await Promise.all(promises);
 
-        // Filter out failed items
-        const items = results.filter(item => item !== null);
-
-        render(items);
+        render(results);
         renderPagination();
     } catch (err) {
         console.error(err);
@@ -144,6 +163,7 @@ copyBtn.onclick = () => {
 
 clearBtn.onclick = () => {
     selectedIds.clear();
+    saveToLocalStorage();
     updateSelectionUI();
     // Re-render current page to uncheck boxes
     loadPage();
@@ -152,24 +172,36 @@ clearBtn.onclick = () => {
 /* ===== RENDER ===== */
 function render(items) {
     gallery.innerHTML = '';
-    console.log('[DEBUG] render() called. selectedIds:', Array.from(selectedIds), '| First item.id:', items[0]?.id, typeof items[0]?.id);
 
     items.forEach(item => {
         const div = document.createElement('div');
         div.className = 'item';
 
-        // Check selection state — compare as string since item.id from API is a string
-        const isSelected = selectedIds.has(String(item.id));
-        if (isSelected) console.log('[DEBUG] Item', item.id, 'is SELECTED ✓');
+        // Use item.id as string for consistent comparison
+        const itemId = String(item.id);
+        const isSelected = selectedIds.has(itemId);
         if (isSelected) div.classList.add('selected');
 
+        // Checkbox
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.className = 'item-select';
         checkbox.checked = isSelected;
 
+        // Show placeholder for failed items
+        if (item._failed) {
+            div.style.background = '#2a2a2a';
+            div.style.minWidth = '120px';
+            const placeholder = document.createElement('div');
+            placeholder.style.cssText = 'padding:10px;color:#888;font-size:11px;text-align:center;';
+            placeholder.innerHTML = `<div>ID: <a href="https://admin.depositphotos.com/files/view/${itemId}" target="_blank" style="color:#666">${itemId}</a></div><div>Failed to load</div>`;
+            div.appendChild(checkbox);
+            div.appendChild(placeholder);
+            gallery.appendChild(div);
+            return;
+        }
+
         checkbox.onchange = (e) => {
-            const itemId = String(item.id);
             if (e.target.checked) {
                 selectedIds.add(itemId);
                 div.classList.add('selected');
@@ -178,12 +210,13 @@ function render(items) {
                 div.classList.remove('selected');
             }
             updateSelectionUI();
+            saveToLocalStorage(); // Instant local save
 
-            // Auto-save
+            // Async save to Google Sheets
             fetch('/api_update_selection', {
                 method: 'POST',
                 body: JSON.stringify({ id: itemId, selected: e.target.checked })
-            }).catch(err => console.error('Save failed', err));
+            }).catch(err => console.error('Save to Google Sheets failed', err));
         };
 
         div.appendChild(checkbox);
