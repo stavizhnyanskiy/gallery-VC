@@ -49,7 +49,9 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         print(f"[HTTP] {self.address_string()} - {format % args}", flush=True)
 
     def do_GET(self):
-        if self.path == '/api_get_checked_ids':
+        clean_path = urllib.parse.urlparse(self.path).path
+        
+        if clean_path == '/api_get_checked_ids':
             if not GOOGLE_SCRIPT_URL:
                 print("[WARNING] /api_get_checked_ids called but GOOGLE_SCRIPT_URL is not set!", flush=True)
                 self.send_response(200)
@@ -58,7 +60,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                 return
 
             try:
-                result = get_from_apps_script(GOOGLE_SCRIPT_URL + '&t=' + str(os.getpid()) if '?' in GOOGLE_SCRIPT_URL else GOOGLE_SCRIPT_URL + '?t=' + str(id(self)))
+                result = get_from_apps_script(GOOGLE_SCRIPT_URL + '?t=' + str(id(self)))
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/plain; charset=utf-8')
                 self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
@@ -70,7 +72,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b'')
 
-        elif self.path == '/api_test_google':
+        elif clean_path == '/api_test_google':
             # Debug endpoint: tests connectivity to Google Script
             result = {"google_url_set": bool(GOOGLE_SCRIPT_URL)}
             if GOOGLE_SCRIPT_URL:
