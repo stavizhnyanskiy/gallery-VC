@@ -13,27 +13,25 @@ GOOGLE_SCRIPT_URL = os.environ.get('GOOGLE_SCRIPT_URL', '')
 
 print(f"[CONFIG] GOOGLE_SCRIPT_URL is {'SET (' + GOOGLE_SCRIPT_URL[:40] + '...)' if GOOGLE_SCRIPT_URL else 'NOT SET - checkboxes will not persist!'}", flush=True)
 
-# Custom redirect handler: keeps POST method through 302 redirects (Google Apps Script always redirects)
-class KeepPostRedirectHandler(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        print(f"[REDIRECT] {req.get_method()} -> {code} -> {newurl[:80]}", flush=True)
-        if req.get_method() == 'POST':
-            data = req.data
-            new_req = urllib.request.Request(newurl, data=data, method='POST')
-            new_req.add_header('Content-Type', 'application/json')
-            return new_req
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
+# Google Apps Script executes doPost on the FIRST request, then redirects (302).
+# We must NOT follow that redirect (the redirect target returns 405 for POST).
+# So we intercept the 302 and treat it as success.
+class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def http_error_302(self, req, fp, code, msg, headers):
+        return fp  # Don't follow redirect, just return the response
+    http_error_301 = http_error_303 = http_error_307 = http_error_308 = http_error_302
 
 
 def post_to_apps_script(url, data):
-    opener = urllib.request.build_opener(KeepPostRedirectHandler)
+    opener = urllib.request.build_opener(NoRedirectHandler)
     req = urllib.request.Request(url, data=data, method='POST')
     req.add_header('Content-Type', 'application/json')
     print(f"[POST] Sending to Apps Script: {data[:200]}", flush=True)
-    with opener.open(req, timeout=10) as response:
+    with opener.open(req, timeout=15) as response:
         result = response.read()
-        print(f"[POST] Apps Script response: {result[:200]}", flush=True)
-        return result
+        print(f"[POST] Apps Script initial response code: {response.code if hasattr(response, 'code') else 'N/A'}", flush=True)
+        return result or b'{"status": "ok"}'
+
 
 
 def get_from_apps_script(url):
