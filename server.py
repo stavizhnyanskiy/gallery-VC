@@ -58,9 +58,10 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                 return
 
             try:
-                result = get_from_apps_script(GOOGLE_SCRIPT_URL)
+                result = get_from_apps_script(GOOGLE_SCRIPT_URL + '&t=' + str(os.getpid()) if '?' in GOOGLE_SCRIPT_URL else GOOGLE_SCRIPT_URL + '?t=' + str(id(self)))
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
                 self.end_headers()
                 self.wfile.write(result)
             except Exception as e:

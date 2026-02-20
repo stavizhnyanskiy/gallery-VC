@@ -25,9 +25,9 @@ async function loadCSV() {
             .filter(Boolean)
             .map(Number);
 
-        // Load persistend selections
+        // Load persistent selections
         try {
-            const checkedRes = await fetch('/api_get_checked_ids');
+            const checkedRes = await fetch('/api_get_checked_ids?t=' + Date.now());
             if (checkedRes.ok) {
                 const checkedText = await checkedRes.text();
                 const checkedList = checkedText.split('\n').map(s => s.trim()).filter(Boolean).map(Number);
