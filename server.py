@@ -50,7 +50,24 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         clean_path = urllib.parse.urlparse(self.path).path
-        
+
+        if clean_path == '/ids.csv':
+            # Serve ids.csv with no-cache headers so browser always gets the latest version
+            try:
+                with open('ids.csv', 'rb') as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/csv; charset=utf-8')
+                self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
+                self.send_header('Pragma', 'no-cache')
+                self.send_header('Content-Length', str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            except Exception as e:
+                print(f"[ERROR] Failed to serve ids.csv: {e}", flush=True)
+                self.send_error(404, 'ids.csv not found')
+            return
+
         if clean_path == '/api_get_checked_ids':
             if not GOOGLE_SCRIPT_URL:
                 print("[WARNING] /api_get_checked_ids called but GOOGLE_SCRIPT_URL is not set!", flush=True)
