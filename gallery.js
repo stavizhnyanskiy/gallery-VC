@@ -28,14 +28,20 @@ async function loadCSV() {
         // Load persistent selections
         try {
             const checkedRes = await fetch('/api_get_checked_ids?t=' + Date.now());
+            console.log('[DEBUG] /api_get_checked_ids status:', checkedRes.status, checkedRes.ok);
             if (checkedRes.ok) {
                 const checkedText = await checkedRes.text();
-                const checkedList = checkedText.split('\n').map(s => s.trim()).filter(Boolean).map(Number);
-                checkedList.forEach(id => selectedIds.add(id));
+                console.log('[DEBUG] Raw checked IDs response:', JSON.stringify(checkedText));
+                const checkedList = checkedText.split('\n').map(s => s.trim()).filter(Boolean);
+                console.log('[DEBUG] Parsed ID strings:', checkedList);
+                const checkedNumbers = checkedList.map(Number);
+                console.log('[DEBUG] Parsed ID numbers:', checkedNumbers);
+                checkedNumbers.forEach(id => selectedIds.add(id));
+                console.log('[DEBUG] selectedIds after load:', Array.from(selectedIds));
                 updateSelectionUI();
             }
         } catch (e) {
-            console.warn('Could not load checked_ids.txt', e);
+            console.warn('[DEBUG] Could not load checked IDs:', e);
         }
 
         // Parse batch from URL
@@ -148,6 +154,7 @@ clearBtn.onclick = () => {
 /* ===== RENDER ===== */
 function render(items) {
     gallery.innerHTML = '';
+    console.log('[DEBUG] render() called. selectedIds:', Array.from(selectedIds), '| First item.id:', items[0]?.id, typeof items[0]?.id);
 
     items.forEach(item => {
         const div = document.createElement('div');
@@ -155,6 +162,7 @@ function render(items) {
 
         // Check selection state
         const isSelected = selectedIds.has(item.id);
+        if (isSelected) console.log('[DEBUG] Item', item.id, 'is SELECTED ✓');
         if (isSelected) div.classList.add('selected');
 
         // Checkbox
