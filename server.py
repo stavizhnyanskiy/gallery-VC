@@ -9,6 +9,24 @@ PORT = int(os.environ.get('PORT', 8000))
 TARGET_URL = "https://api.depositphotos.com/?dp_command=getMediaData"
 GOOGLE_SCRIPT_URL = os.environ.get('GOOGLE_SCRIPT_URL', '')
 
+# Custom redirect handler: keeps POST method through 302 redirects (Google Apps Script always redirects)
+class KeepPostRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if req.get_method() == 'POST':
+            data = req.data
+            new_req = urllib.request.Request(newurl, data=data, method='POST')
+            for key, val in req.headers.items():
+                new_req.add_header(key, val)
+            return new_req
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+def post_to_apps_script(url, data):
+    opener = urllib.request.build_opener(KeepPostRedirectHandler)
+    req = urllib.request.Request(url, data=data, method='POST')
+    req.add_header('Content-Type', 'application/json')
+    with opener.open(req) as response:
+        return response.read()
+
 class ProxyHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/api_get_checked_ids':
@@ -67,17 +85,14 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                     self.wfile.write(b'{"status": "no_google_url_configured"}')
                     return
                 
-                # Forward request to Apps Script Webhook
-                # Important: Google Apps Script doPost redirects (302), we need to follow or just assume OK.
-                req = urllib.request.Request(GOOGLE_SCRIPT_URL, data=post_data, method="POST")
-                req.add_header('Content-Type', 'application/json')
-                
-                with urllib.request.urlopen(req) as response:
-                    self.send_response(response.status)
-                    self.end_headers()
-                    self.wfile.write(response.read())
+                # Use custom opener to keep POST through 302 redirect from Apps Script
+                result = post_to_apps_script(GOOGLE_SCRIPT_URL, post_data)
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(result)
 
             except Exception as e:
+                print(f"Error updating selection: {e}")
                 self.send_error(500, str(e))
         else:
             # Default behavior for other POST requests (though we don't expect any)
