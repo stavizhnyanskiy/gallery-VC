@@ -34,9 +34,7 @@ async function loadCSV() {
                 console.log('[DEBUG] Raw checked IDs response:', JSON.stringify(checkedText));
                 const checkedList = checkedText.split('\n').map(s => s.trim()).filter(Boolean);
                 console.log('[DEBUG] Parsed ID strings:', checkedList);
-                const checkedNumbers = checkedList.map(Number);
-                console.log('[DEBUG] Parsed ID numbers:', checkedNumbers);
-                checkedNumbers.forEach(id => selectedIds.add(id));
+                checkedList.forEach(id => selectedIds.add(id));
                 console.log('[DEBUG] selectedIds after load:', Array.from(selectedIds));
                 updateSelectionUI();
             }
@@ -160,23 +158,23 @@ function render(items) {
         const div = document.createElement('div');
         div.className = 'item';
 
-        // Check selection state
-        const isSelected = selectedIds.has(item.id);
+        // Check selection state — compare as string since item.id from API is a string
+        const isSelected = selectedIds.has(String(item.id));
         if (isSelected) console.log('[DEBUG] Item', item.id, 'is SELECTED ✓');
         if (isSelected) div.classList.add('selected');
 
-        // Checkbox
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.className = 'item-select';
         checkbox.checked = isSelected;
 
         checkbox.onchange = (e) => {
+            const itemId = String(item.id);
             if (e.target.checked) {
-                selectedIds.add(item.id);
+                selectedIds.add(itemId);
                 div.classList.add('selected');
             } else {
-                selectedIds.delete(item.id);
+                selectedIds.delete(itemId);
                 div.classList.remove('selected');
             }
             updateSelectionUI();
@@ -184,7 +182,7 @@ function render(items) {
             // Auto-save
             fetch('/api_update_selection', {
                 method: 'POST',
-                body: JSON.stringify({ id: item.id, selected: e.target.checked })
+                body: JSON.stringify({ id: itemId, selected: e.target.checked })
             }).catch(err => console.error('Save failed', err));
         };
 
