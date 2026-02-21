@@ -104,8 +104,8 @@ async function loadPage() {
             return;
         }
 
-        // Create an array of promises, one for each ID — order is preserved by Promise.all
-        const promises = slice.map(async (id) => {
+        // Helper to fetch single item
+        const fetchItem = async (id) => {
             try {
                 const body = new URLSearchParams({
                     dp_apikey: CONFIG.API_KEY,
@@ -125,10 +125,16 @@ async function loadPage() {
                 console.error(`Error loading ID ${id}:`, e);
                 return { id, _failed: true };
             }
-        });
+        };
 
-        // Wait for all requests to finish — Promise.all preserves order
-        const results = await Promise.all(promises);
+        // Fetch in batches of 5 to avoid overwhelming the proxy/browser
+        const batchSize = 5;
+        const results = [];
+        for (let i = 0; i < slice.length; i += batchSize) {
+            const batch = slice.slice(i, i + batchSize);
+            const batchResults = await Promise.all(batch.map(fetchItem));
+            results.push(...batchResults);
+        }
 
         render(results);
         renderPagination();

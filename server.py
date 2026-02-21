@@ -128,7 +128,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                 req = urllib.request.Request(TARGET_URL, data=post_data, method="POST")
                 req.add_header('Content-Type', 'application/x-www-form-urlencoded')
 
-                with urllib.request.urlopen(req) as response:
+                with urllib.request.urlopen(req, timeout=15) as response:
                     self.send_response(response.status)
                     self.end_headers()
                     self.wfile.write(response.read())
