@@ -150,6 +150,7 @@ const selectionBar = document.getElementById('selectionBar');
 const selectionCount = document.getElementById('selectionCount');
 const copyBtn = document.getElementById('copyIds');
 const clearBtn = document.getElementById('clearSelection');
+const selectAllCheckbox = document.getElementById('selectAllCheckbox');
 
 function updateSelectionUI() {
     selectionCount.innerText = `Selected: ${selectedIds.size}`;
@@ -175,6 +176,74 @@ clearBtn.onclick = () => {
     loadPage();
 };
 
+if (selectAllCheckbox) {
+    selectAllCheckbox.onchange = async (e) => {
+        const isChecked = e.target.checked;
+        const checkboxes = document.querySelectorAll('.item-select');
+        const itemsToUpdate = [];
+
+        checkboxes.forEach(cb => {
+            if (cb.checked !== isChecked) {
+                cb.checked = isChecked;
+                const itemId = String(cb.dataset.id);
+                if (isChecked) {
+                    selectedIds.add(itemId);
+                    cb.closest('.item').classList.add('selected');
+                } else {
+                    selectedIds.delete(itemId);
+                    cb.closest('.item').classList.remove('selected');
+                }
+                itemsToUpdate.push(itemId);
+            }
+        });
+
+        if (itemsToUpdate.length === 0) return;
+
+        updateSelectionUI();
+        saveToLocalStorage();
+
+        // Disable checkbox while saving
+        selectAllCheckbox.disabled = true;
+
+        // Send selection updates in batches of 5 to avoid overwhelming the server
+        for (let i = 0; i < itemsToUpdate.length; i += 5) {
+            const batch = itemsToUpdate.slice(i, i + 5);
+            await Promise.all(batch.map(id => fetch('/api_update_selection', {
+                method: 'POST',
+                body: JSON.stringify({ id: id, selected: isChecked })
+            }).catch(err => console.error('Save to Google Sheets failed', err))));
+        }
+
+        // Restore checkbox state
+        selectAllCheckbox.disabled = false;
+    };
+}
+
+/* ===== HOVER PREVIEW ===== */
+const hoverPreview = document.createElement('div');
+Object.assign(hoverPreview.style, {
+    position: 'fixed',
+    zIndex: '9999',
+    pointerEvents: 'none',
+    opacity: '0',
+    visibility: 'hidden',
+    transition: 'opacity 0.15s ease-in-out',
+    background: '#fff',
+    padding: '8px',
+    borderRadius: '8px',
+    boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
+});
+const hoverImg = document.createElement('img');
+hoverImg.style.maxHeight = '90vh';
+hoverImg.style.maxWidth = '90vw';
+hoverImg.style.objectFit = 'contain';
+hoverImg.style.display = 'block';
+hoverImg.style.borderRadius = '4px';
+hoverPreview.appendChild(hoverImg);
+document.body.appendChild(hoverPreview);
+
+let hoverTimeout;
+
 /* ===== RENDER ===== */
 function render(items) {
     gallery.innerHTML = '';
@@ -192,6 +261,7 @@ function render(items) {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.className = 'item-select';
+        checkbox.dataset.id = itemId;
         checkbox.checked = isSelected;
 
         // Show placeholder for failed items
@@ -218,6 +288,17 @@ function render(items) {
             updateSelectionUI();
             saveToLocalStorage(); // Instant local save
 
+            // If a checkbox was unchecked, make sure "Select all" is unchecked too
+            if (selectAllCheckbox && !e.target.checked) {
+                selectAllCheckbox.checked = false;
+            } else if (selectAllCheckbox && e.target.checked) {
+                const checkedCount = document.querySelectorAll('.item-select:checked').length;
+                const totalCount = document.querySelectorAll('.item-select').length;
+                if (checkedCount === totalCount && totalCount > 0) {
+                    selectAllCheckbox.checked = true;
+                }
+            }
+
             // Async save to Google Sheets
             fetch('/api_update_selection', {
                 method: 'POST',
@@ -238,8 +319,59 @@ function render(items) {
         `;
         div.appendChild(content);
 
+        // Hover events for tooltip
+        div.onmouseenter = (e) => {
+            hoverImg.src = item.thumb_max || item.url_big || item.thumb_huge || item.thumbnail;
+            clearTimeout(hoverTimeout);
+            hoverTimeout = setTimeout(() => {
+                hoverPreview.style.visibility = 'visible';
+                hoverPreview.style.opacity = '1';
+            }, 300); // 300ms delay to prevent flashing
+        };
+
+        div.onmouseleave = () => {
+            clearTimeout(hoverTimeout);
+            hoverPreview.style.opacity = '0';
+            hoverPreview.style.visibility = 'hidden';
+        };
+
+        div.onmousemove = (e) => {
+            const popupWidth = hoverPreview.offsetWidth || 500;
+            const popupHeight = hoverPreview.offsetHeight || 500;
+
+            let x = e.clientX + 20;
+            let y = e.clientY + 20;
+
+            // Adjust if it goes off the right edge
+            if (x + popupWidth > window.innerWidth) {
+                x = e.clientX - popupWidth - 20;
+            }
+
+            // Adjust if it goes off the bottom edge
+            if (y + popupHeight > window.innerHeight) {
+                y = e.clientY - popupHeight - 20;
+            }
+
+            // Fallback adjustments if image is large and window is small
+            if (x < 0) x = 10;
+            if (y < 0) y = 10;
+
+            hoverPreview.style.left = x + 'px';
+            hoverPreview.style.top = y + 'px';
+        };
+
         gallery.appendChild(div);
     });
+
+    if (selectAllCheckbox) {
+        const checkboxes = document.querySelectorAll('.item-select');
+        if (checkboxes.length > 0) {
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            selectAllCheckbox.checked = allChecked;
+        } else {
+            selectAllCheckbox.checked = false;
+        }
+    }
 }
 
 /* ===== PAGINATION ===== */
